@@ -1,18 +1,18 @@
+
 import React, { useState, useRef, useEffect } from 'react'
 import {
   Send,
   Sparkles,
   Bot,
   User,
-  ArrowRight,
   RefreshCw,
   Lightbulb,
-  CheckCircle,
 } from 'lucide-react'
-import Card from '../components/common/Card'
 import Button from '../components/common/Button'
 import { useAuth } from '../context/AuthContext'
 import * as aiService from '../services/aiService'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 const SUGGESTED_PROMPTS = [
   'How much did I spend on food this month?',
@@ -24,19 +24,21 @@ const SUGGESTED_PROMPTS = [
 
 export default function AssistantPage() {
   const { user } = useAuth()
+
   const [messages, setMessages] = useState([
     {
       id: 'msg_001',
       sender: 'ai',
-      text: 'Hello Aarya! I am FinSight AI. Ask me anything about your October spending, budget limits, emergency goals, or upcoming expense forecasts.',
+      text: `Hello ${user?.name || 'there'}! I'm FinSight AI. Ask me anything about your spending, budgets, savings or financial goals.`,
       time: 'Just now',
       suggestions: [
-        'How much did I spend on food this month?',
+        'How much did I spend this month?',
         'Where am I overspending?',
-        'Can I save ₹5,000 next month?',
+        'How can I improve my savings?',
       ],
     },
   ])
+
   const [inputValue, setInputValue] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const chatBottomRef = useRef(null)
@@ -47,6 +49,7 @@ export default function AssistantPage() {
 
   const handleSend = async (textToSend) => {
     const text = (textToSend || inputValue).trim()
+
     if (!text || isTyping) return
 
     const userMessage = {
@@ -61,7 +64,8 @@ export default function AssistantPage() {
     setIsTyping(true)
 
     try {
-      const response = await aiService.sendAIMessage(text, messages)
+      const response = await aiService.sendAIMessage(text,messages)
+
       const aiReply = {
         id: `ai_${Date.now()}`,
         sender: 'ai',
@@ -69,18 +73,41 @@ export default function AssistantPage() {
         time: 'Just now',
         suggestions: response.suggestions || [],
       }
+
       setMessages((prev) => [...prev, aiReply])
     } catch (err) {
+      console.error('AI Assistant error:', err)
+
       const errorReply = {
         id: `err_${Date.now()}`,
         sender: 'ai',
         text: 'Sorry, I encountered an issue retrieving that analysis. Please try again.',
         time: 'Just now',
       }
+
       setMessages((prev) => [...prev, errorReply])
     } finally {
       setIsTyping(false)
     }
+  }
+
+  const handleReset = () => {
+    if (isTyping) return
+
+    setMessages([
+      {
+        id: `reset_${Date.now()}`,
+        sender: 'ai',
+        text: 'Chat history cleared. What would you like to explore regarding your financial health?',
+        time: 'Just now',
+        suggestions: [
+          'Analyze my spending this month',
+          'Am I following my budgets?',
+          'How can I improve my savings?',
+        ],
+      },
+    ])
+    setInputValue('')
   }
 
   const handleKeyDown = (e) => {
@@ -92,12 +119,14 @@ export default function AssistantPage() {
 
   return (
     <div className="h-[calc(100vh-8.5rem)] flex flex-col space-y-4 max-w-5xl mx-auto animate-in fade-in duration-200">
+
       {/* Top Header */}
       <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-2xl bg-indigo-600 text-white shadow-sm shadow-indigo-200">
             <Bot className="w-6 h-6" />
           </div>
+
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-extrabold tracking-tight text-slate-900">
@@ -107,6 +136,7 @@ export default function AssistantPage() {
                 Online
               </span>
             </div>
+
             <p className="text-xs text-slate-500">
               Ask questions about your spending, budgets and financial goals.
             </p>
@@ -114,17 +144,9 @@ export default function AssistantPage() {
         </div>
 
         <button
-          onClick={() =>
-            setMessages([
-              {
-                id: `reset_${Date.now()}`,
-                sender: 'ai',
-                text: 'Chat history cleared. What would you like to explore regarding your financial health?',
-                time: 'Just now',
-              },
-            ])
-          }
-          className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 font-semibold p-1.5 rounded-lg hover:bg-slate-100"
+          onClick={handleReset}
+          disabled={isTyping}
+          className="text-xs text-slate-400 hover:text-slate-600 disabled:opacity-40 flex items-center gap-1 font-semibold p-1.5 rounded-lg hover:bg-slate-100"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           <span>Reset</span>
@@ -159,7 +181,7 @@ export default function AssistantPage() {
               </div>
 
               {/* Message Bubble */}
-              <div className="space-y-2">
+              <div className="space-y-2 min-w-0 flex-1">
                 <div
                   className={`p-4 rounded-2xl text-xs sm:text-sm leading-relaxed ${
                     isUser
@@ -167,19 +189,28 @@ export default function AssistantPage() {
                       : 'bg-white border border-slate-200/80 text-slate-800 rounded-tl-xs shadow-xs'
                   }`}
                 >
-                  <p>{msg.text}</p>
+                  {isUser ? (
+                    <p className="whitespace-pre-wrap">{msg.text}</p>
+                  ) : (
+                    <div className="prose prose-sm max-w-none prose-slate prose-table:text-xs prose-th:px-2 prose-th:py-1.5 prose-td:px-2 prose-td:py-1.5 prose-headings:font-bold prose-headings:text-slate-900 prose-p:leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {msg.text}
+                      </ReactMarkdown>
+                    </div>
+                  )}
                 </div>
 
-                {/* AI Follow-up suggestions */}
-                {!isUser && msg.suggestions && msg.suggestions.length > 0 && (
+                {/* AI Follow-up Suggestions */}
+                {!isUser && msg.suggestions?.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 pt-1">
-                    {msg.suggestions.map((s, idx) => (
+                    {msg.suggestions.map((suggestion, idx) => (
                       <button
                         key={idx}
-                        onClick={() => handleSend(s)}
-                        className="text-[11px] font-semibold text-indigo-700 bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-100 px-2.5 py-1 rounded-lg transition-colors text-left"
+                        onClick={() => handleSend(suggestion)}
+                        disabled={isTyping}
+                        className="text-[11px] font-semibold text-indigo-700 bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-100 px-2.5 py-1 rounded-lg transition-colors text-left disabled:opacity-50"
                       >
-                        {s}
+                        {suggestion}
                       </button>
                     ))}
                   </div>
@@ -195,10 +226,11 @@ export default function AssistantPage() {
             <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center">
               <Sparkles className="w-4 h-4 animate-spin" />
             </div>
+
             <div className="p-3 bg-white border border-slate-200/80 rounded-2xl rounded-tl-xs shadow-xs flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce"></span>
-              <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce [animation-delay:0.2s]"></span>
-              <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce [animation-delay:0.4s]"></span>
+              <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce" />
+              <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce [animation-delay:0.2s]" />
+              <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce [animation-delay:0.4s]" />
             </div>
           </div>
         )}
@@ -206,21 +238,23 @@ export default function AssistantPage() {
         <div ref={chatBottomRef} />
       </div>
 
-      {/* Suggested Prompts Shelf */}
+      {/* Suggested Prompts */}
       {messages.length <= 2 && (
         <div className="space-y-1.5 pt-1">
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
             <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
             Suggested prompts:
           </p>
+
           <div className="flex items-center gap-2 overflow-x-auto pb-1">
-            {SUGGESTED_PROMPTS.map((p, idx) => (
+            {SUGGESTED_PROMPTS.map((prompt, idx) => (
               <button
                 key={idx}
-                onClick={() => handleSend(p)}
-                className="shrink-0 text-xs text-slate-700 bg-white border border-slate-200 hover:border-indigo-400 hover:text-indigo-600 px-3 py-1.5 rounded-xl transition-all shadow-xs"
+                onClick={() => handleSend(prompt)}
+                disabled={isTyping}
+                className="shrink-0 text-xs text-slate-700 bg-white border border-slate-200 hover:border-indigo-400 hover:text-indigo-600 px-3 py-1.5 rounded-xl transition-all shadow-xs disabled:opacity-50"
               >
-                {p}
+                {prompt}
               </button>
             ))}
           </div>
@@ -242,8 +276,10 @@ export default function AssistantPage() {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="flex-1 px-3 py-2 text-xs sm:text-sm bg-transparent focus:outline-none text-slate-900 placeholder-slate-400"
+            disabled={isTyping}
+            className="flex-1 px-3 py-2 text-xs sm:text-sm bg-transparent focus:outline-none text-slate-900 placeholder-slate-400 disabled:opacity-60"
           />
+
           <Button
             type="submit"
             disabled={!inputValue.trim() || isTyping}
@@ -254,8 +290,9 @@ export default function AssistantPage() {
             Send
           </Button>
         </form>
+
         <p className="text-[10px] text-center text-slate-400 mt-1.5">
-          Simulated AI responses grounded in FinSight test data. Ready for Spring Boot LLM API.
+          Powered by FinSight AI · Responses based on your financial data.
         </p>
       </div>
     </div>

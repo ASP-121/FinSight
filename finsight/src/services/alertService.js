@@ -1,3 +1,4 @@
+
 import { request, USE_MOCK } from '../utils/apiClient'
 import { mockAlerts } from '../data/mockAlerts'
 
@@ -5,13 +6,15 @@ const STORAGE_KEY = 'finsight_alerts'
 
 function getStoredAlerts() {
   const cached = localStorage.getItem(STORAGE_KEY)
+
   if (cached) {
     try {
       return JSON.parse(cached)
     } catch {
-      // ignore
+      // Ignore invalid cached data
     }
   }
+
   localStorage.setItem(STORAGE_KEY, JSON.stringify(mockAlerts))
   return mockAlerts
 }
@@ -35,21 +38,31 @@ export async function markAlertAsRead(id) {
   }
 
   const list = getStoredAlerts()
-  const updated = list.map((a) => (a.id === id ? { ...a, read: true } : a))
+  const updated = list.map((alert) =>
+    alert.id === id ? { ...alert, read: true } : alert
+  )
+
   saveStoredAlerts(updated)
-  return updated
 }
 
 export async function markAllAlertsAsRead() {
+  if (!USE_MOCK) {
+    return request('/api/alerts/read-all', { method: 'PUT' })
+  }
+
   const list = getStoredAlerts()
-  const updated = list.map((a) => ({ ...a, read: true }))
+  const updated = list.map((alert) => ({ ...alert, read: true }))
+
   saveStoredAlerts(updated)
-  return updated
 }
 
 export async function dismissAlert(id) {
+  if (!USE_MOCK) {
+    return request(`/api/alerts/${id}`, { method: 'DELETE' })
+  }
+
   const list = getStoredAlerts()
-  const updated = list.filter((a) => a.id !== id)
+  const updated = list.filter((alert) => alert.id !== id)
+
   saveStoredAlerts(updated)
-  return updated
 }

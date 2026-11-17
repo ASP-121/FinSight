@@ -1,6 +1,9 @@
 
 package com.finsight.backend.security;
 
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.finsight.backend.model.User;
 import com.finsight.backend.repository.UserRepository;
 import com.finsight.backend.service.JwtService;
@@ -20,6 +23,10 @@ import java.util.Collections;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+
+    private static final Logger log =
+            LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
@@ -55,6 +62,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 User user = userRepository.findById(userId).orElse(null);
 
+
                 if (user != null) {
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(
@@ -70,11 +78,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                     SecurityContextHolder.getContext()
                             .setAuthentication(authentication);
+
+                    log.debug("JWT authenticated user successfully.");
+                } else {
+                    log.warn("JWT is valid, but no user was found for the extracted user ID.");
                 }
+
             }
 
+
         } catch (JwtException | IllegalArgumentException exception) {
-            // Invalid or expired token: leave the request unauthenticated.
+            log.warn(
+                    "JWT validation failed: {}",
+                    exception.getMessage()
+            );
         }
         filterChain.doFilter(request, response);
     }

@@ -1,5 +1,6 @@
 import { request, USE_MOCK } from '../utils/apiClient'
 import { mockTransactions } from '../data/mockTransactions'
+import { notifyAlertsChanged } from '../utils/alertEvents'
 
 const STORAGE_KEY = 'finsight_transactions'
 
@@ -155,63 +156,77 @@ export async function getTransactionById(id) {
 }
 
 export async function createTransaction(data) {
+  let created
+
   if (!USE_MOCK) {
-    const created = await request('/api/transactions', {
-    method: 'POST',
-    body: JSON.stringify(toApiTransaction(data)),
-  })
+    created = await request('/api/transactions', {
+      method: 'POST',
+      body: JSON.stringify(toApiTransaction(data)),
+    })
+  } else {
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    const list = getStoredTransactions()
+
+    created = {
+      ...data,
+      id: `tx_${Date.now()}`,
+      amount: Number(data.amount),
+      status: data.status || 'Completed',
+      date: data.date || new Date().toISOString().split('T')[0],
+    }
+
+    saveStoredTransactions([created, ...list])
+  }
+
+  notifyAlertsChanged()
   return normalizeTransaction(created)
-  }
-
-  await new Promise((resolve) => setTimeout(resolve, 300))
-  const list = getStoredTransactions()
-  const newTx = {
-    ...data,
-    id: `tx_${Date.now()}`,
-    amount: Number(data.amount),
-    status: data.status || 'Completed',
-    date: data.date || new Date().toISOString().split('T')[0]
-  }
-
-  const updated = [newTx, ...list]
-  saveStoredTransactions(updated)
-  return newTx
 }
 
 export async function updateTransaction(id, data) {
+  let updated
+
   if (!USE_MOCK) {
-    const updated = await request(`/api/transactions/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(toApiTransaction(data)),
-  })
+    updated = await request(`/api/transactions/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(toApiTransaction(data)),
+    })
+  } else {
+    await new Promise((resolve) => setTimeout(resolve, 250))
+    const list = getStoredTransactions()
+    const index = list.findIndex((t) => t.id === id)
+
+    if (index === -1) throw new Error('Transaction not found')
+
+    updated = {
+      ...list[index],
+      ...data,
+      amount: Number(data.amount ?? list[index].amount),
+    }
+
+    list[index] = updated
+    saveStoredTransactions(list)
+  }
+
+  notifyAlertsChanged()
   return normalizeTransaction(updated)
-  }
-
-  await new Promise((resolve) => setTimeout(resolve, 250))
-  const list = getStoredTransactions()
-  const index = list.findIndex((t) => t.id === id)
-  if (index === -1) throw new Error('Transaction not found')
-
-  const updatedTx = {
-    ...list[index],
-    ...data,
-    amount: Number(data.amount ?? list[index].amount),
-  }
-  list[index] = updatedTx
-  saveStoredTransactions(list)
-  return updatedTx
 }
 
 export async function deleteTransaction(id) {
+  let result
+
   if (!USE_MOCK) {
-    return request(`/api/transactions/${id}`, {
+    result = await request(`/api/transactions/${id}`, {
       method: 'DELETE',
     })
+  } else {
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    const list = getStoredTransactions()
+    const filtered = list.filter((t) => t.id !== id)
+
+    saveStoredTransactions(filtered)
+    result = { success: true, id }
   }
 
-  await new Promise((resolve) => setTimeout(resolve, 200))
-  const list = getStoredTransactions()
-  const filtered = list.filter((t) => t.id !== id)
-  saveStoredTransactions(filtered)
-  return { success: true, id }
+  notifyAlertsChanged()
+  return result
 }

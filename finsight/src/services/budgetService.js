@@ -1,5 +1,6 @@
 import { request, USE_MOCK } from '../utils/apiClient'
 import { mockBudgets } from '../data/mockBudgets'
+import { notifyAlertsChanged } from '../utils/alertEvents'
 
 const STORAGE_KEY = 'finsight_budgets'
 
@@ -30,63 +31,81 @@ export async function getBudgets() {
 }
 
 export async function createBudget(data) {
+  let created
+
   if (!USE_MOCK) {
-    return request('/api/budgets', {
+    created = await request('/api/budgets', {
       method: 'POST',
       body: JSON.stringify(data),
     })
+  } else {
+    await new Promise((resolve) => setTimeout(resolve, 250))
+    const list = getStoredBudgets()
+
+    created = {
+      ...data,
+      id: `bgt_${Date.now()}`,
+      allocated: Number(data.allocated || data.limit || 0),
+      spent: Number(data.spent || 0),
+      month: data.month || 'October 2026',
+      color: data.color || '#3b82f6',
+      icon: data.icon || 'Wallet',
+    }
+
+    saveStoredBudgets([...list, created])
   }
 
-  await new Promise((resolve) => setTimeout(resolve, 250))
-  const list = getStoredBudgets()
-  const newBudget = {
-    ...data,
-    id: `bgt_${Date.now()}`,
-    allocated: Number(data.allocated || data.limit || 0),
-    spent: Number(data.spent || 0),
-    month: data.month || 'October 2026',
-    color: data.color || '#3b82f6',
-    icon: data.icon || 'Wallet'
-  }
-
-  const updated = [...list, newBudget]
-  saveStoredBudgets(updated)
-  return newBudget
+  notifyAlertsChanged()
+  return created
 }
 
 export async function updateBudget(id, data) {
+  let updated
+
   if (!USE_MOCK) {
-    return request(`/api/budgets/${id}`, {
+    updated = await request(`/api/budgets/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     })
+  } else {
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    const list = getStoredBudgets()
+    const index = list.findIndex((b) => b.id === id)
+
+    if (index === -1) throw new Error('Budget not found')
+
+    updated = {
+      ...list[index],
+      ...data,
+      allocated: Number(
+        data.allocated ?? data.limit ?? list[index].allocated
+      ),
+    }
+
+    list[index] = updated
+    saveStoredBudgets(list)
   }
 
-  await new Promise((resolve) => setTimeout(resolve, 200))
-  const list = getStoredBudgets()
-  const index = list.findIndex((b) => b.id === id)
-  if (index === -1) throw new Error('Budget not found')
-
-  const updatedBudget = {
-    ...list[index],
-    ...data,
-    allocated: Number(data.allocated ?? data.limit ?? list[index].allocated),
-  }
-  list[index] = updatedBudget
-  saveStoredBudgets(list)
-  return updatedBudget
+  notifyAlertsChanged()
+  return updated
 }
 
 export async function deleteBudget(id) {
+  let result
+
   if (!USE_MOCK) {
-    return request(`/api/budgets/${id}`, {
+    result = await request(`/api/budgets/${id}`, {
       method: 'DELETE',
     })
+  } else {
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    const list = getStoredBudgets()
+    const filtered = list.filter((b) => b.id !== id)
+
+    saveStoredBudgets(filtered)
+    result = { success: true, id }
   }
 
-  await new Promise((resolve) => setTimeout(resolve, 200))
-  const list = getStoredBudgets()
-  const filtered = list.filter((b) => b.id !== id)
-  saveStoredBudgets(filtered)
-  return { success: true, id }
+  notifyAlertsChanged()
+  return result
 }

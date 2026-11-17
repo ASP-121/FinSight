@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Lightbulb,
+  Info,
   ChevronDown,
   ChevronUp,
   ArrowRight,
@@ -35,6 +36,15 @@ const TYPE_CONFIG = {
     iconColor: 'bg-rose-100 text-rose-700',
     borderColor: 'border-rose-200/60',
   },
+
+ info: {
+   icon: Info,
+   badgeVariant: 'info',
+   badgeLabel: 'Information',
+   iconColor: 'bg-blue-100 text-blue-700',
+   borderColor: 'border-blue-200/60',
+  },
+
   opportunity: {
     icon: Lightbulb,
     badgeVariant: 'ai',
@@ -49,7 +59,7 @@ export default function InsightCard({
   compact = false,
 }) {
   const [isExpanded, setIsExpanded] = useState(false)
-  const config = TYPE_CONFIG[insight.type] || TYPE_CONFIG.opportunity
+  const config = TYPE_CONFIG[insight.type] || TYPE_CONFIG.info
   const Icon = config.icon
 
   return (

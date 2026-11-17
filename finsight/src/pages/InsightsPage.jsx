@@ -7,7 +7,14 @@ import LoadingSkeleton from '../components/common/LoadingSkeleton'
 import ErrorState from '../components/common/ErrorState'
 import * as aiService from '../services/aiService'
 
-const FILTER_TABS = ['all', 'warning', 'good', 'attention', 'opportunity']
+const FILTER_TABS = [
+  'all',
+  'warning',
+  'good',
+  'attention',
+  'info',
+  'opportunity'
+]
 
 export default function InsightsPage() {
   const [insightsData, setInsightsData] = useState(null)
@@ -48,6 +55,24 @@ export default function InsightsPage() {
 
   const { healthScore = 78, breakdown = [], items = [] } = insightsData || {}
 
+const availableMetrics = breakdown.filter(
+  (metric) => metric.score !== null && metric.score !== undefined
+).length
+
+const totalMetrics = breakdown.length
+
+const healthLabel =
+  availableMetrics < totalMetrics
+    ? 'Building Your Financial Profile'
+    : healthScore >= 80
+      ? 'Excellent Financial Health'
+      : healthScore >= 65
+        ? 'Good Financial Progress'
+        : healthScore >= 50
+          ? 'Needs Some Attention'
+          : 'Needs Improvement'
+
+
   const filteredItems =
     activeFilter === 'all'
       ? items
@@ -74,7 +99,7 @@ export default function InsightsPage() {
 
         <div className="flex items-center gap-2 p-2 bg-purple-50/80 border border-purple-100 rounded-xl text-xs text-purple-800 self-start sm:self-auto">
           <Info className="w-4 h-4 text-purple-600 shrink-0" />
-          <span>Prepared for future Spring Boot ML backend</span>
+          <span>Live financial analysis</span>
         </div>
       </div>
 
@@ -102,9 +127,15 @@ export default function InsightsPage() {
                 </div>
               </div>
             </div>
-            <p className="mt-3 text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
-              Strong Financial Footing
-            </p>
+             <div className="mt-3 flex flex-col items-center gap-1">
+  <p className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full">
+    {healthLabel}
+  </p>
+
+  <span className="text-[11px] text-slate-400">
+    Based on {availableMetrics} of {totalMetrics} metrics
+  </span>
+</div>
           </div>
 
           {/* Breakdown Bars */}
@@ -113,24 +144,44 @@ export default function InsightsPage() {
               Health Metric Breakdown
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {breakdown.map((b) => (
-                <div
-                  key={b.label}
-                  className="p-3 rounded-xl bg-white border border-slate-100 shadow-xs space-y-1.5"
-                >
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-semibold text-slate-700">{b.label}</span>
-                    <span className="font-bold text-slate-900">{b.score} / 100</span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-indigo-600 transition-all duration-500"
-                      style={{ width: `${b.score}%` }}
-                    />
-                  </div>
-                  <p className="text-[11px] text-slate-400 truncate">{b.description}</p>
-                </div>
-              ))}
+              
+{breakdown.map((b) => {
+  const hasScore = b.score !== null && b.score !== undefined
+  const score = hasScore
+    ? Math.min(100, Math.max(0, b.score))
+    : 0
+
+  return (
+    <div
+      key={b.label}
+      className="p-3 rounded-xl bg-white border border-slate-100 shadow-xs space-y-1.5"
+    >
+      <div className="flex justify-between items-center text-xs">
+        <span className="font-semibold text-slate-700">
+          {b.label}
+        </span>
+
+        <span className="font-bold text-slate-900">
+          {hasScore ? `${score} / 100` : 'N/A'}
+        </span>
+      </div>
+
+      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-500 ${
+            hasScore ? 'bg-indigo-600' : 'bg-transparent'
+          }`}
+          style={{ width: `${score}%` }}
+        />
+      </div>
+
+      <p className="text-[11px] text-slate-400">
+        {b.description}
+      </p>
+    </div>
+  )
+})}
+
             </div>
           </div>
         </div>
@@ -142,13 +193,33 @@ export default function InsightsPage() {
           <button
             key={tab}
             onClick={() => setActiveFilter(tab)}
-            className={`px-3.5 py-1.5 text-xs font-bold rounded-xl capitalize transition-all shrink-0 ${
-              activeFilter === tab
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50'
-            }`}
+            
+className={`px-3.5 py-1.5 text-xs font-bold rounded-xl capitalize transition-all shrink-0 border ${
+  activeFilter === tab
+    ? {
+        all: 'bg-slate-900 text-white border-slate-900 shadow-xs',
+        warning: 'bg-amber-500 text-white border-amber-500 shadow-xs',
+        good: 'bg-emerald-500 text-white border-emerald-500 shadow-xs',
+        attention: 'bg-rose-500 text-white border-rose-500 shadow-xs',
+        info: 'bg-blue-500 text-white border-blue-500 shadow-xs',
+        opportunity: 'bg-purple-500 text-white border-purple-500 shadow-xs',
+      }[tab]
+    : {
+        all: 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50',
+        warning: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100',
+        good: 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100',
+        attention: 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100',
+        info: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100',
+        opportunity: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100',
+      }[tab]
+}`}
+
           >
-            {tab === 'all' ? 'All Insights' : tab}
+            {tab === 'all'
+  ? 'All Insights'
+  : tab === 'info'
+    ? 'Info'
+    : tab}
           </button>
         ))}
       </div>

@@ -1,6 +1,7 @@
 
 package com.finsight.backend.service;
 
+
 import com.finsight.backend.dto.TransactionRequest;
 import com.finsight.backend.dto.TransactionResponse;
 import com.finsight.backend.model.Transaction;
@@ -16,10 +17,14 @@ import java.util.List;
 public class TransactionService {
 
     private final TransactionRepository transactionRepository;
+    private final AlertService alertService;
 
     public TransactionService(
-            TransactionRepository transactionRepository) {
+            TransactionRepository transactionRepository,
+            AlertService alertService
+    ) {
         this.transactionRepository = transactionRepository;
+        this.alertService = alertService;
     }
 
     public List<TransactionResponse> getAllTransactions(String userId) {
@@ -37,7 +42,8 @@ public class TransactionService {
     }
 
     public TransactionResponse createTransaction(
-            TransactionRequest request, String userId) {
+            TransactionRequest request, String userId)
+    {
 
         Transaction transaction = new Transaction(
                 userId,
@@ -49,6 +55,7 @@ public class TransactionService {
         );
 
         Transaction saved = transactionRepository.save(transaction);
+        alertService.refreshAlerts(userId);
         return toResponse(saved);
     }
 
@@ -66,11 +73,13 @@ public class TransactionService {
         transaction.setDate(request.date());
 
         Transaction updated = transactionRepository.save(transaction);
+        alertService.refreshAlerts(userId);
         return toResponse(updated);
     }
 
     public void deleteTransaction(String id, String userId) {
         Transaction transaction = findOwnedTransaction(id, userId);
+        alertService.refreshAlerts(userId);
         transactionRepository.delete(transaction);
     }
 

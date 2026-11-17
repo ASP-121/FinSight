@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
 import {
@@ -8,10 +9,10 @@ import {
   Settings,
   LogOut,
   ChevronDown,
-  CheckCircle2,
   AlertTriangle,
   Sparkles,
   TrendingUp,
+  X,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import * as alertService from '../../services/alertService'
@@ -43,16 +44,23 @@ export default function Header({ onToggleSidebar }) {
   const profileRef = useRef(null)
 
   useEffect(() => {
-    async function loadAlerts() {
-      try {
-        const data = await alertService.getAlerts()
-        setAlerts(data)
-      } catch (err) {
-        console.error('Failed to load alerts', err)
-      }
+  async function loadAlerts() {
+    try {
+      const data = await alertService.getAlerts()
+      setAlerts(data)
+    } catch (err) {
+      console.error('Failed to load alerts', err)
     }
-    loadAlerts()
-  }, [])
+  }
+
+  loadAlerts()
+
+  window.addEventListener('alerts:refresh', loadAlerts)
+
+  return () => {
+    window.removeEventListener('alerts:refresh', loadAlerts)
+  }
+}, [])
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -63,12 +71,19 @@ export default function Header({ onToggleSidebar }) {
       ) {
         setShowNotifications(false)
       }
-      if (profileRef.current && !profileRef.current.contains(event.target)) {
+
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(event.target)
+      ) {
         setShowProfileMenu(false)
       }
     }
+
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+
+    return () =>
+      document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   const unreadCount = alerts.filter((a) => !a.read).length
@@ -76,30 +91,93 @@ export default function Header({ onToggleSidebar }) {
 
   const handleMarkAsRead = async (id, e) => {
     e.stopPropagation()
-    const updated = await alertService.markAlertAsRead(id)
-    setAlerts(updated)
+
+    try {
+      await alertService.markAlertAsRead(id)
+
+      setAlerts((prev) =>
+        prev.map((alert) =>
+          alert.id === id ? { ...alert, read: true } : alert
+        )
+      )
+    } catch (err) {
+      console.error('Failed to mark alert as read', err)
+    }
   }
 
   const handleMarkAllRead = async () => {
-    const updated = await alertService.markAllAlertsAsRead()
-    setAlerts(updated)
+    try {
+      await alertService.markAllAlertsAsRead()
+
+      setAlerts((prev) =>
+        prev.map((alert) => ({ ...alert, read: true }))
+      )
+    } catch (err) {
+      console.error('Failed to mark all alerts as read', err)
+    }
+  }
+
+  const handleDismissAlert = async (id, e) => {
+    e.stopPropagation()
+
+    try {
+      await alertService.dismissAlert(id)
+
+      setAlerts((prev) =>
+        prev.filter((alert) => alert.id !== id)
+      )
+    } catch (err) {
+      console.error('Failed to dismiss alert', err)
+    }
+  }
+
+  const handleClearAll = async () => {
+    if (alerts.length === 0) return
+
+    const confirmed = window.confirm(
+      'Are you sure you want to clear all notifications?'
+    )
+
+    if (!confirmed) return
+
+    try {
+      await Promise.all(
+        alerts.map((alert) =>
+          alertService.dismissAlert(alert.id)
+        )
+      )
+
+      setAlerts([])
+    } catch (err) {
+      console.error('Failed to clear notifications', err)
+      window.alert(
+        'Some notifications could not be cleared. Please try again.'
+      )
+    }
   }
 
   const handleNotificationClick = (actionRoute) => {
     setShowNotifications(false)
-    if (actionRoute) navigate(actionRoute)
+
+    if (actionRoute) {
+      navigate(actionRoute)
+    }
   }
 
   const handleSearchSubmit = (e) => {
     e.preventDefault()
+
     if (searchQuery.trim()) {
-      navigate(`/transactions?search=${encodeURIComponent(searchQuery.trim())}`)
+      navigate(
+        `/transactions?search=${encodeURIComponent(searchQuery.trim())}`
+      )
       setSearchQuery('')
     }
   }
 
   return (
     <header className="sticky top-0 z-30 h-18 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 flex items-center justify-between transition-all">
+
       {/* Left: Mobile hamburger & Dynamic page title */}
       <div className="flex items-center gap-3">
         <button
@@ -109,6 +187,7 @@ export default function Header({ onToggleSidebar }) {
         >
           <Menu className="w-5 h-5" />
         </button>
+
         <div>
           <h1 className="text-xl font-bold tracking-tight text-slate-900">
             {currentTitle}
@@ -118,9 +197,14 @@ export default function Header({ onToggleSidebar }) {
 
       {/* Middle & Right Controls */}
       <div className="flex items-center gap-2 sm:gap-4">
+
         {/* Search Input */}
-        <form onSubmit={handleSearchSubmit} className="relative hidden md:block">
+        <form
+          onSubmit={handleSearchSubmit}
+          className="relative hidden md:block"
+        >
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+
           <input
             type="text"
             placeholder="Search transactions, budgets..."
@@ -138,6 +222,7 @@ export default function Header({ onToggleSidebar }) {
             aria-label="Notifications"
           >
             <Bell className="w-5 h-5" />
+
             {unreadCount > 0 && (
               <span className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white ring-2 ring-white">
                 {unreadCount}
@@ -147,27 +232,44 @@ export default function Header({ onToggleSidebar }) {
 
           {showNotifications && (
             <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150">
+
+              {/* Notification Header */}
               <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <div className="flex items-center gap-2">
                   <h3 className="font-semibold text-sm text-slate-900">
                     Notifications
                   </h3>
+
                   {unreadCount > 0 && (
                     <span className="px-2 py-0.5 text-[10px] font-bold bg-indigo-100 text-indigo-700 rounded-full">
                       {unreadCount} unread
                     </span>
                   )}
                 </div>
-                {unreadCount > 0 && (
-                  <button
-                    onClick={handleMarkAllRead}
-                    className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
-                  >
-                    Mark all as read
-                  </button>
-                )}
+
+                {/* Mark All Read & Clear All */}
+                <div className="flex items-center gap-3">
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={handleMarkAllRead}
+                      className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                    >
+                      Mark all as read
+                    </button>
+                  )}
+
+                  {alerts.length > 0 && (
+                    <button
+                      onClick={handleClearAll}
+                      className="text-xs text-rose-600 hover:text-rose-800 font-medium"
+                    >
+                      Clear all
+                    </button>
+                  )}
+                </div>
               </div>
 
+              {/* Notification List */}
               <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
                 {alerts.length === 0 ? (
                   <div className="p-6 text-center text-xs text-slate-500">
@@ -177,11 +279,14 @@ export default function Header({ onToggleSidebar }) {
                   alerts.map((item) => (
                     <div
                       key={item.id}
-                      onClick={() => handleNotificationClick(item.actionRoute)}
+                      onClick={() =>
+                        handleNotificationClick(item.actionRoute)
+                      }
                       className={`p-3.5 hover:bg-slate-50 cursor-pointer transition-colors flex items-start gap-3 ${
                         !item.read ? 'bg-indigo-50/30' : ''
                       }`}
                     >
+                      {/* Notification Icon */}
                       <div
                         className={`p-2 rounded-xl mt-0.5 shrink-0 ${
                           item.severity === 'high'
@@ -199,33 +304,57 @@ export default function Header({ onToggleSidebar }) {
                           <Sparkles className="w-4 h-4" />
                         )}
                       </div>
+
+                      {/* Notification Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
                           <p className="text-xs font-semibold text-slate-900 truncate">
                             {item.title}
                           </p>
+
                           <span className="text-[10px] text-slate-400 shrink-0 ml-1">
                             {item.timestamp}
                           </span>
                         </div>
+
                         <p className="text-xs text-slate-600 mt-0.5 line-clamp-2 leading-relaxed">
                           {item.description}
                         </p>
                       </div>
-                      {!item.read && (
+
+                      {/* Individual Notification Actions */}
+                      <div className="flex items-center gap-1 shrink-0">
+
+                        {!item.read && (
+                          <button
+                            onClick={(e) =>
+                              handleMarkAsRead(item.id, e)
+                            }
+                            title="Mark as read"
+                            aria-label="Mark notification as read"
+                            className="p-1.5 text-slate-300 hover:text-indigo-600"
+                          >
+                            <span className="block w-2 h-2 rounded-full bg-indigo-600"></span>
+                          </button>
+                        )}
+
                         <button
-                          onClick={(e) => handleMarkAsRead(item.id, e)}
-                          title="Mark as read"
-                          className="shrink-0 p-1 text-slate-300 hover:text-indigo-600"
+                          onClick={(e) =>
+                            handleDismissAlert(item.id, e)
+                          }
+                          title="Dismiss notification"
+                          aria-label="Dismiss notification"
+                          className="p-1.5 text-slate-300 hover:text-rose-600"
                         >
-                          <span className="block w-2 h-2 rounded-full bg-indigo-600"></span>
+                          <X className="w-4 h-4" />
                         </button>
-                      )}
+                      </div>
                     </div>
                   ))
                 )}
               </div>
 
+              {/* Notification Footer */}
               <div className="p-2.5 border-t border-slate-100 text-center bg-slate-50/50">
                 <Link
                   to="/insights"
@@ -247,26 +376,32 @@ export default function Header({ onToggleSidebar }) {
             aria-label="User Menu"
           >
             <img
-              src={
-                user?.avatar
-              }
+              src={user?.avatar}
               alt={user?.name || 'Aarya'}
               className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-100"
             />
+
             <div className="hidden sm:block text-left">
               <p className="text-xs font-bold text-slate-800 leading-tight">
                 {user?.firstName || 'Aarya'}
               </p>
               <p className="text-[10px] text-slate-400">Personal</p>
             </div>
+
             <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
           </button>
 
           {showProfileMenu && (
             <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150 py-1">
+
               <div className="px-4 py-3 border-b border-slate-100">
-                <p className="text-xs font-bold text-slate-900">{user?.name || 'Aarya Patel'}</p>
-                <p className="text-xs text-slate-500 truncate mt-0.5">{user?.email}</p>
+                <p className="text-xs font-bold text-slate-900">
+                  {user?.name || 'Aarya Patel'}
+                </p>
+
+                <p className="text-xs text-slate-500 truncate mt-0.5">
+                  {user?.email}
+                </p>
               </div>
 
               <div className="py-1">
@@ -278,6 +413,7 @@ export default function Header({ onToggleSidebar }) {
                   <User className="w-4 h-4 text-slate-400" />
                   <span>View Profile</span>
                 </Link>
+
                 <Link
                   to="/settings"
                   onClick={() => setShowProfileMenu(false)}

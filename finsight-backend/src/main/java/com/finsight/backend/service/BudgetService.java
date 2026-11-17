@@ -27,13 +27,16 @@ public class BudgetService {
 
     private final BudgetRepository budgetRepository;
     private final TransactionRepository transactionRepository;
+    private final AlertService alertService;
 
     public BudgetService(
             BudgetRepository budgetRepository,
-            TransactionRepository transactionRepository
+            TransactionRepository transactionRepository,
+            AlertService alertService
     ) {
         this.budgetRepository = budgetRepository;
         this.transactionRepository = transactionRepository;
+        this.alertService = alertService;
     }
 
     public List<BudgetResponse> getAllBudgets(String userId) {
@@ -54,6 +57,7 @@ public class BudgetService {
         applyRequest(budget, request);
 
         Budget savedBudget = budgetRepository.save(budget);
+        alertService.refreshAlerts(userId);
 
         List<Transaction> transactions =
                 transactionRepository.findAllByUserId(userId);
@@ -76,7 +80,7 @@ public class BudgetService {
         applyRequest(budget, request);
 
         Budget savedBudget = budgetRepository.save(budget);
-
+        alertService.refreshAlerts(userId);
         List<Transaction> transactions =
                 transactionRepository.findAllByUserId(userId);
 
@@ -90,6 +94,7 @@ public class BudgetService {
                 ));
 
         budgetRepository.delete(budget);
+        alertService.refreshAlerts(userId);
     }
 
     private void applyRequest(Budget budget, BudgetRequest request) {
