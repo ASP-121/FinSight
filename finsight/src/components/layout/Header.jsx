@@ -375,15 +375,17 @@ export default function Header({ onToggleSidebar }) {
             className="flex items-center gap-2.5 p-1.5 pr-2 rounded-xl hover:bg-slate-100 transition-colors"
             aria-label="User Menu"
           >
-            <img
-              src={user?.avatar}
-              alt={user?.name || 'Aarya'}
-              className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-100"
-            />
+            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200/80 flex items-center justify-center font-bold text-xs shrink-0 ring-2 ring-slate-100">
+              {user?.name
+                ? user.name.trim().charAt(0).toUpperCase()
+                : user?.firstName
+                ? user.firstName.trim().charAt(0).toUpperCase()
+                : <User className="w-4 h-4 text-indigo-600" />}
+            </div>
 
             <div className="hidden sm:block text-left">
               <p className="text-xs font-bold text-slate-800 leading-tight">
-                {user?.firstName || 'Aarya'}
+                {user?.firstName || user?.name || 'Aarya'}
               </p>
               <p className="text-[10px] text-slate-400">Personal</p>
             </div>
@@ -392,16 +394,24 @@ export default function Header({ onToggleSidebar }) {
           </button>
 
           {showProfileMenu && (
-            <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150 py-1">
+            <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150 py-1">
 
-              <div className="px-4 py-3 border-b border-slate-100">
-                <p className="text-xs font-bold text-slate-900">
-                  {user?.name || 'Aarya Patel'}
-                </p>
-
-                <p className="text-xs text-slate-500 truncate mt-0.5">
-                  {user?.email}
-                </p>
+              <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200/80 flex items-center justify-center font-bold text-sm shrink-0">
+                  {user?.name
+                    ? user.name.trim().charAt(0).toUpperCase()
+                    : user?.firstName
+                    ? user.firstName.trim().charAt(0).toUpperCase()
+                    : <User className="w-4 h-4 text-indigo-600" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-slate-900 truncate">
+                    {user?.name || user?.firstName || 'Aarya Patel'}
+                  </p>
+                  <p className="text-xs text-slate-500 truncate mt-0.5">
+                    {user?.email}
+                  </p>
+                </div>
               </div>
 
               <div className="py-1">
