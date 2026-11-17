@@ -44,6 +44,7 @@ export default function TransactionModal({
 
   const [aiSuggestion, setAiSuggestion] = useState(null)
   const [isDetectingCategory, setIsDetectingCategory] = useState(false)
+  const [isCategoryManuallySet, setIsCategoryManuallySet] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -58,6 +59,7 @@ export default function TransactionModal({
         notes: initialData.notes || '',
       })
       setAiSuggestion(null)
+      setIsCategoryManuallySet(true)
     } else {
       setFormData({
         amount: '',
@@ -68,11 +70,12 @@ export default function TransactionModal({
         notes: '',
       })
       setAiSuggestion(null)
+      setIsCategoryManuallySet(false)
     }
     setError('')
   }, [initialData, isOpen])
 
-  // Simulate AI categorization when user stops typing description
+  // Automatically suggest category when user stops typing description
   useEffect(() => {
     if (isEditing || !formData.description || formData.description.length < 3) {
       return
@@ -85,7 +88,7 @@ export default function TransactionModal({
         if (result && result.category) {
           setAiSuggestion(result)
           // Automatically set detected category if user hasn't explicitly selected one
-          if (!formData.category || formData.category === 'AI will automatically detect category') {
+          if (!isCategoryManuallySet) {
             setFormData((prev) => ({ ...prev, category: result.category }))
           }
         }
@@ -97,7 +100,7 @@ export default function TransactionModal({
     }, 400)
 
     return () => clearTimeout(timer)
-  }, [formData.description, isEditing])
+  }, [formData.description, isEditing, isCategoryManuallySet])
 
   if (!isOpen) return null
 
@@ -254,21 +257,45 @@ export default function TransactionModal({
                   </div>
                   <div>
                     <span className="text-slate-500">AI Suggested Category: </span>
-                    <span className="font-bold text-purple-900">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData((prev) => ({ ...prev, category: aiSuggestion.category }))
+                        setIsCategoryManuallySet(true)
+                      }}
+                      className="font-bold text-purple-900 underline hover:text-purple-700 decoration-dotted cursor-pointer"
+                    >
                       {aiSuggestion.category}
-                    </span>
+                    </button>
                   </div>
                 </div>
-                <span className="text-[11px] font-semibold text-purple-700 bg-purple-100/60 px-2 py-0.5 rounded-full">
-                  Confidence: {aiSuggestion.confidence}%
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-semibold text-purple-700 bg-purple-100/60 px-2 py-0.5 rounded-full">
+                    Confidence: {aiSuggestion.confidence}%
+                  </span>
+                  {formData.category !== aiSuggestion.category && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData((prev) => ({ ...prev, category: aiSuggestion.category }))
+                        setIsCategoryManuallySet(true)
+                      }}
+                      className="text-[11px] font-medium text-purple-700 hover:text-purple-900 bg-purple-100 px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
+                    >
+                      Apply
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
             <div className="relative">
               <select
                 value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                onChange={(e) => {
+                  setIsCategoryManuallySet(true)
+                  setFormData({ ...formData, category: e.target.value })
+                }}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 appearance-none focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 pr-10 cursor-pointer"
               >
                 <option value="" disabled>

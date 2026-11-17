@@ -7,13 +7,21 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  const refreshUser = async () => {
+    try {
+      const u = await authService.getUserProfile()
+      setUser(u)
+      return u
+    } catch (err) {
+      console.error('Failed to load user', err)
+      return null
+    }
+  }
+
   useEffect(() => {
     async function initUser() {
       try {
-        const u = await authService.getCurrentUser()
-        setUser(u)
-      } catch (err) {
-        console.error('Failed to load user', err)
+        await refreshUser()
       } finally {
         setLoading(false)
       }
@@ -40,7 +48,11 @@ export function AuthProvider({ children }) {
 
   const updateProfile = async (updates) => {
     const updated = await authService.updateUserProfile(updates)
-    setUser(updated)
+    setUser((prev) => ({
+      ...prev,
+      ...updated,
+      firstName: updated.name?.split(' ')[0] || updated.name,
+    }))
     return updated
   }
 
@@ -54,6 +66,7 @@ export function AuthProvider({ children }) {
         register,
         logout,
         updateProfile,
+        refreshUser,
       }}
     >
       {children}

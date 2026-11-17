@@ -1,4 +1,3 @@
-
 import { mockUser } from '../data/mockUser'
 import { request, USE_MOCK } from '../utils/apiClient'
 
@@ -96,12 +95,53 @@ export async function getCurrentUser() {
   return USE_MOCK ? mockUser : null
 }
 
+export async function getUserProfile() {
+  if (!USE_MOCK) {
+    const profile = await request('/api/user/profile')
+    const user = {
+      ...profile,
+      firstName: profile.name?.split(' ')[0] || profile.name,
+    }
+    const cached = localStorage.getItem(AUTH_USER_KEY)
+    if (cached) {
+      try {
+        const prev = JSON.parse(cached)
+        localStorage.setItem(AUTH_USER_KEY, JSON.stringify({ ...prev, ...user }))
+      } catch {}
+    } else {
+      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user))
+    }
+    return user
+  }
+
+  return getCurrentUser()
+}
+
 export async function updateUserProfile(updates) {
   if (!USE_MOCK) {
-    return request('/api/user/profile', {
+    const updated = await request('/api/user/profile', {
       method: 'PUT',
-      body: JSON.stringify(updates),
+      body: JSON.stringify({
+        name: updates.name,
+        email: updates.email,
+      }),
     })
+
+    const user = {
+      ...updated,
+      firstName: updated.name?.split(' ')[0] || updated.name,
+    }
+
+    const cached = localStorage.getItem(AUTH_USER_KEY)
+    if (cached) {
+      try {
+        const prev = JSON.parse(cached)
+        localStorage.setItem(AUTH_USER_KEY, JSON.stringify({ ...prev, ...user }))
+      } catch {}
+    } else {
+      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user))
+    }
+    return user
   }
 
   await new Promise((resolve) => setTimeout(resolve, 250))
@@ -111,6 +151,49 @@ export async function updateUserProfile(updates) {
 
   localStorage.setItem(AUTH_USER_KEY, JSON.stringify(updated))
   return updated
+}
+
+export async function changePassword({ currentPassword, newPassword, confirmPassword }) {
+  if (!USE_MOCK) {
+    return request('/api/user/password', {
+      method: 'PUT',
+      body: JSON.stringify({
+        currentPassword,
+        newPassword,
+        confirmPassword,
+      }),
+    })
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 300))
+  return { message: 'Password updated successfully' }
+}
+
+export async function getUserPreferences() {
+  if (!USE_MOCK) {
+    return request('/api/user/preferences')
+  }
+
+  return {
+    currency: 'INR',
+    defaultCategory: 'Food',
+    budgetAlerts: true,
+    unusualSpendingAlerts: true,
+    aiWeeklyDigest: true,
+    goalMilestoneAlerts: true,
+  }
+}
+
+export async function updateUserPreferences(preferences) {
+  if (!USE_MOCK) {
+    return request('/api/user/preferences', {
+      method: 'PUT',
+      body: JSON.stringify({ preferences }),
+    })
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 250))
+  return preferences
 }
 
 export async function logout() {

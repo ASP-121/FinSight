@@ -6,6 +6,9 @@ import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Setter
 @Getter
 @NoArgsConstructor
@@ -18,4 +21,5 @@ public class User
     private String name;
     private String email;
     private String passwordHash;
+    private Map<String, Object> preferences = new HashMap<>();
 }
